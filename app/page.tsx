@@ -206,6 +206,7 @@ export default function ReportPage() {
   }, []);
   useEffect(() => {
     const params = buildParams();
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- resets pagination when filters change; fetchData/fetchDashboardData intentionally kick off requests from here
     setCurrentPage(1);
     fetchData(1, params);
     fetchDashboardData(params);
@@ -213,6 +214,7 @@ export default function ReportPage() {
   useEffect(() => {
     if (currentPage > 1) {
       const params = buildParams();
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- fetchData's initial setLoading call runs synchronously before its first await
       fetchData(currentPage, params);
     }
   }, [currentPage, buildParams, fetchData]);
@@ -284,12 +286,12 @@ export default function ReportPage() {
               <div className="space-y-2">
                 <Label htmlFor="start-date" className="text-blue-900 font-medium">ช่วงเวลาเริ่มต้น</Label>
                 <Popover><PopoverTrigger asChild><Button id="start-date" variant="outline" className="w-full justify-start text-left font-normal border-blue-300 hover:bg-blue-50 text-blue-900"><CalendarIcon className="mr-2 h-4 w-4" />{startDate ?
-                  format(startDate, 'PPP', { locale: th }) : <span>เลือกวันที่</span>}</Button></PopoverTrigger><PopoverContent className="w-auto p-0 border-blue-200 shadow-lg"><Calendar mode="single" selected={startDate} onSelect={setStartDate} initialFocus locale={th} className="border-0" /></PopoverContent></Popover>
+                  format(startDate, 'PPP', { locale: th }) : <span>เลือกวันที่</span>}</Button></PopoverTrigger><PopoverContent className="w-auto p-0 border-blue-200 shadow-lg"><Calendar mode="single" selected={startDate} onSelect={setStartDate} autoFocus locale={th} className="border-0" /></PopoverContent></Popover>
               </div>
               <div className="space-y-2">
                 <Label htmlFor="end-date" className="text-blue-900 font-medium">ช่วงเวลาสิ้นสุด</Label>
                 <Popover><PopoverTrigger asChild><Button id="end-date" variant="outline" className="w-full justify-start text-left font-normal border-blue-300 hover:bg-blue-50 text-blue-900" disabled={!startDate}><CalendarIcon className="mr-2 h-4 w-4" />{endDate ?
-                  format(endDate, 'PPP', { locale: th }) : <span>เลือกวันที่</span>}</Button></PopoverTrigger><PopoverContent className="w-auto p-0 border-blue-200 shadow-lg"><Calendar mode="single" selected={endDate} onSelect={setEndDate} initialFocus locale={th} fromDate={startDate} className="border-0" /></PopoverContent></Popover>
+                  format(endDate, 'PPP', { locale: th }) : <span>เลือกวันที่</span>}</Button></PopoverTrigger><PopoverContent className="w-auto p-0 border-blue-200 shadow-lg"><Calendar mode="single" selected={endDate} onSelect={setEndDate} autoFocus locale={th} disabled={startDate ? { before: startDate } : undefined} className="border-0" /></PopoverContent></Popover>
               </div>
               <div className="space-y-2">
                 <Label htmlFor="province" className="text-blue-900 font-medium">จังหวัด</Label>

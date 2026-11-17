@@ -301,12 +301,14 @@ export default function SubmitPage() {
                     mode="single"
                     selected={selectedSunday}
                     onSelect={handleDateSelect}
-                    disabled={date => date.getDay() !== 0}
+                    disabled={[
+                      (date: Date) => date.getDay() !== 0,
+                      { before: new Date(2020, 0, 1) },
+                      { after: new Date() },
+                    ]}
                     locale={th}
-                    initialFocus
+                    autoFocus
                     className="border-0"
-                    fromDate={new Date(2020, 0, 1)}
-                    toDate={new Date()}
                   />
                 </PopoverContent>
               </Popover>

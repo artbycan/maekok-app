@@ -14,7 +14,7 @@ services:
     # ต้อง mount เฉพาะ .env สำหรับ runtime config
     volumes:
       - .env:/app/.env:ro
-    command: yarn start
+    command: npm start
     networks:
       - nginx_networks
     # จำกัดทรัพยากรเพื่อป้องกันการรัน miner

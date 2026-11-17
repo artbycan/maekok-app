@@ -1,5 +1,6 @@
 // lib/prisma.ts
-import { PrismaClient } from "@prisma/client";
+import { PrismaClient } from "@/generated/prisma/client";
+import { PrismaPg } from "@prisma/adapter-pg";
 
 // ขยาย type ของ global ให้มี property prisma
 type CustomGlobal = typeof global & {
@@ -8,10 +9,15 @@ type CustomGlobal = typeof global & {
 
 const globalWithPrisma = global as CustomGlobal;
 
+const adapter = new PrismaPg({
+  connectionString: process.env.DATABASE_URL,
+});
+
 // สร้างหรือ reuse instance
 export const prisma =
   globalWithPrisma.prisma ??
   new PrismaClient({
+    adapter,
     log: ["query"],
   });
 
