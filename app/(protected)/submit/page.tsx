@@ -13,6 +13,7 @@ import { Calendar as CalendarIcon, Check, ChevronsUpDown } from 'lucide-react';
 import { Command, CommandInput, CommandEmpty, CommandGroup, CommandItem, CommandList } from '@/components/ui/command';
 import { format } from 'date-fns';
 import { th } from 'date-fns/locale';
+import { PDF_ICD10_ITEMS } from '@/lib/surveillance-config';
 
 axios.defaults.withCredentials = true;
 
@@ -38,44 +39,20 @@ const provinces = [
   { id: '57', name: 'เชียงราย' }
 ]
 
-const codes: Record<string, string[]> = {
-  'กลุ่มอาการทางระบบประสาท / การรับความรู้สึกผิดปกติ': ['R20.0', 'R20.2'],
-  'กลุ่มอาการทางผิวหนัง': ['L85.9', 'L85.1', 'L66.1', 'L11.0', 'L81.0', 'L81.4', 'L81.9', 'L30.9', 'L81.8', 'L81.2'],
-  'กลุ่มอาการทางระบบทางเดินอาหาร': ['R11.1', 'R11.0', 'R11.2', 'K52.9'],
-  'โรคต่อมไร้ท่อ / เมตาบอลิซม': ['E27.1'],
-  'โรคมะเร็ง': ['D04', 'C44', 'C67.9'],
-  'โรคไต': ['N17', 'N18'],
-  'โรคพิษจากสารหนู': ['T57.0'],
-  'โรคอื่น ๆ ที่เกี่ยวข้อง': ['Z58.2', 'Y97'],
-};
+const codes: Record<string, string[]> = PDF_ICD10_ITEMS.reduce<Record<string, string[]>>(
+  (acc, item) => {
+    if (!acc[item.category]) {
+      acc[item.category] = [];
+    }
+    acc[item.category].push(item.icd10Label);
+    return acc;
+  },
+  {}
+);
 
-const mapCodeToDescription: Record<string, string> = {
-  'R20.0': 'อาการชา',
-  'R20.2': 'อาการชา แปลบ เสียว',
-  'L85.9': 'ภาวะผิวหนังหนาตัว ไม่ระบุสาเหตุ',
-  'L85.1': 'Keratoderma Palmaris et Plantaris',
-  'L66.1': 'Lichen Planopilaris',
-  'L11.0': 'Acquired keratosis follicularis',
-  'L81.0': 'ฝ้า',
-  'L81.4': 'ภาวะผิวคล้ำจากเมลานิน',
-  'L81.9': 'ภาวะผิวคล้ำ ไม่ระบุสาเหตุ',
-  'L30.9': 'โรคผิวหนังอักเสบ ไม่ระบุสาเหตุ',
-  'L81.8': 'ภาวะสร้างเม็ดสีผิดปกติ อื่นๆ',
-  'L81.2': 'กระ จุดสีผิวเล็กๆ',
-  'R11.1': 'อาเจียน',
-  'R11.0': 'คลื่นไส้',
-  'R11.2': 'คลื่นไส้ร่วมกับอาเจียน',
-  'K52.9': 'ลำไส้อักเสบ ไม่ทราบสาเหตุ',
-  'E27.1': 'โรค Addison’s (ต่อมหมวกไตผิดปกติ ผิวคล้ำทั่วตัว)',
-  'D04': 'Carcinoma in Situ of Skin',
-  'C44': 'Other And Unspecified Malignant Neoplasm of Skin',
-  'C67.9': 'มะเร็งกระเพาะปัสสาวะ ไม่ระบุสาเหตุ',
-  'N17': 'ภาวะไตวายเฉียบพลัน',
-  'N18': 'ภาวะไตวายเรื้อรัง',
-  'T57.0': 'พิษจากสารหนู',
-  'Z58.2': 'Exposure to Water Pollution',
-  'Y97': 'Environmental Pollution Related Condition',
-};
+const mapCodeToDescription: Record<string, string> = Object.fromEntries(
+  PDF_ICD10_ITEMS.map((item) => [item.icd10Label, item.name])
+);
 
 export default function SubmitPage() {
   const router = useRouter();

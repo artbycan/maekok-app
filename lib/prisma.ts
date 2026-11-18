@@ -9,8 +9,13 @@ type CustomGlobal = typeof global & {
 
 const globalWithPrisma = global as CustomGlobal;
 
+const rawConnectionString = process.env.DATABASE_URL ?? "";
+const connectionString = rawConnectionString
+  .trim()
+  .replace(/^(['"])(.*)\1$/, "$2");
+
 const adapter = new PrismaPg({
-  connectionString: process.env.DATABASE_URL,
+  connectionString,
 });
 
 // สร้างหรือ reuse instance
@@ -18,7 +23,10 @@ export const prisma =
   globalWithPrisma.prisma ??
   new PrismaClient({
     adapter,
-    log: ["query"],
+    log:
+      process.env.NODE_ENV === "development"
+        ? ["query", "warn", "error"]
+        : ["error"],
   });
 
 // ใน dev mode ให้เก็บ instance ไว้ใน global ไม่สร้างซ้ำเวลารันใหม่

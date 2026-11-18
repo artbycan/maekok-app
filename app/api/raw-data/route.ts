@@ -1,65 +1,49 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import type { Prisma } from "@/generated/prisma/client";
+import { buildSurveillanceWhere } from "@/lib/surveillance-query";
+
 export const dynamic = "force-dynamic";
 
+const EXPORT_MAX_ROWS = 50_000;
+
 export async function GET(request: Request) {
-  const filterhospitalIds = ["10674", "11126"];
   try {
     const { searchParams } = new URL(request.url);
-    const startDate = searchParams.get("startDate");
-    const endDate = searchParams.get("endDate");
-    const province = searchParams.get("province");
-    const group = searchParams.get("group");
-    const hospitalIds = searchParams.getAll("hospitalIds");
-    const page = parseInt(searchParams.get("page") || "1", 10);
-    const limit = parseInt(searchParams.get("limit") || "20", 10);
+    const rawPage = Number.parseInt(searchParams.get("page") || "1", 10);
+    const rawLimit = Number.parseInt(searchParams.get("limit") || "20", 10);
+    const page = Number.isFinite(rawPage) && rawPage > 0 ? rawPage : 1;
+    const limit =
+      Number.isFinite(rawLimit) && rawLimit > 0 ? Math.min(rawLimit, 100) : 20;
     const skip = (page - 1) * limit;
 
     const exportAll = searchParams.get("export") === "true";
+    const where = buildSurveillanceWhere(searchParams);
+    const take: number = exportAll ? EXPORT_MAX_ROWS : limit;
 
-    const where: Prisma.maekok_summary_aggregatedWhereInput = {};
-    where.date_serv = {};
-    if (startDate)
-      where.date_serv = { ...where.date_serv, gte: new Date(startDate) };
-    if (endDate)
-      where.date_serv = { ...where.date_serv, lte: new Date(endDate) };
-    if (province) where.provcode = province;
-    if (group) where.groupname = group;
-    if (hospitalIds.length > 0) where.hospcode = { in: hospitalIds };
-    const [data, totalCount] = await prisma.$transaction([
+    const [data, totalCount] = await Promise.all([
       prisma.maekok_summary_aggregated.findMany({
-        where: {
-          ...where,
-          hospcode: { in: filterhospitalIds },
-        },
+        where,
         orderBy: { date_serv: "desc" },
-        ...(!exportAll && {
-          skip: skip,
-          take: limit,
-        }),
+        ...(exportAll ? {} : { skip }),
+        take,
       }),
       prisma.maekok_summary_aggregated.count({ where }),
     ]);
+
     const serializedData = data.map((row) => ({
       ...row,
       total_count: row.total_count?.toString() || "0",
     }));
+
     return NextResponse.json({
       data: serializedData,
       totalCount,
+      truncated: exportAll && totalCount > EXPORT_MAX_ROWS,
     });
   } catch (error) {
-    if (error instanceof Error) {
-      console.error("API Error fetching raw data:", error.message);
-      return NextResponse.json(
-        { message: `Failed to fetch raw data: ${error.message}` },
-        { status: 500 }
-      );
-    }
-    console.error("An unknown API error occurred:", error);
+    console.error("API Error fetching raw data:", error);
     return NextResponse.json(
-      { message: "An unknown error occurred" },
+      { message: "Failed to fetch raw data" },
       { status: 500 }
     );
   }

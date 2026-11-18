@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getWeek } from "date-fns";
-import type { Prisma } from "@/generated/prisma/client";
+import { buildSurveillanceWhere } from "@/lib/surveillance-query";
 
 interface Submission {
   id: string;
@@ -22,18 +22,7 @@ export const dynamic = "force-dynamic"; // Prevent static caching
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
-  const startDate = searchParams.get("startDate");
-  const endDate = searchParams.get("endDate");
-  const province = searchParams.get("province");
-  const hospitalIds = searchParams.getAll("hospitalIds");
-
-  const where: Prisma.maekok_summary_aggregatedWhereInput = {};
-  where.date_serv = {};
-  if (startDate)
-    where.date_serv = { ...where.date_serv, gte: new Date(startDate) };
-  if (endDate) where.date_serv = { ...where.date_serv, lte: new Date(endDate) };
-  if (province) where.provcode = province;
-  if (hospitalIds.length > 0) where.hospcode = { in: hospitalIds };
+  const where = buildSurveillanceWhere(searchParams);
 
   try {
     const result = await prisma.maekok_summary_aggregated.findMany({
@@ -44,8 +33,14 @@ export async function GET(request: Request) {
     const groupedData: { [key: string]: Submission } = {};
 
     for (const row of result) {
-      const year = row.date_serv.getFullYear();
-      const weekNumber = getWeek(row.date_serv, { weekStartsOn: 1 });
+      const [y, m, d] = row.date_serv
+        .toISOString()
+        .split("T")[0]
+        .split("-")
+        .map(Number);
+      const localDate = new Date(y, m - 1, d);
+      const year = y;
+      const weekNumber = getWeek(localDate, { weekStartsOn: 1 });
       const groupKey = `${year}-${weekNumber}-${row.hospcode}`;
 
       if (!groupedData[groupKey]) {

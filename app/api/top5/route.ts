@@ -1,33 +1,21 @@
 // app/api/top5/route.ts
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import type { Prisma } from "@/generated/prisma/client";
+import { buildSurveillanceWhere } from "@/lib/surveillance-query";
 
 export const dynamic = "force-dynamic";
+
 export async function GET(request: Request) {
-  const filterhospitalIds = ["10674", "11126"];
   try {
     const { searchParams } = new URL(request.url);
-    const startDate = searchParams.get("startDate");
-    const endDate = searchParams.get("endDate");
-    const province = searchParams.get("province");
-    const group = searchParams.get("group");
-    const hospitalIds = searchParams.getAll("hospitalIds");
-    const where: Prisma.maekok_summary_aggregatedWhereInput = {};
-    const dateFilter: { gte?: Date; lte?: Date } = {};
-    if (startDate) dateFilter.gte = new Date(startDate);
-    if (endDate) dateFilter.lte = new Date(endDate);
-    if (Object.keys(dateFilter).length > 0) where.date_serv = dateFilter;
-    if (province) where.provcode = province;
-    if (group) where.groupname = group;
-    if (hospitalIds.length > 0) where.hospcode = { in: hospitalIds };
-    const [topProvinces, topHospitals, topGroups] = await prisma.$transaction([
+    const where = buildSurveillanceWhere(searchParams);
+
+    const [topProvinces, topHospitals, topGroups] = await Promise.all([
       prisma.maekok_summary_aggregated.groupBy({
         by: ["provname"],
         where: {
           ...where,
           provname: { not: null },
-          hospcode: { in: filterhospitalIds },
         },
         _sum: { total_count: true },
         orderBy: { _sum: { total_count: "desc" } },
@@ -38,7 +26,6 @@ export async function GET(request: Request) {
         where: {
           ...where,
           hosname: { not: null },
-          hospcode: { in: filterhospitalIds },
         },
         _sum: {
           total_count: true,
@@ -51,13 +38,13 @@ export async function GET(request: Request) {
         where: {
           ...where,
           groupname: { not: null },
-          hospcode: { in: filterhospitalIds },
         },
         _sum: { total_count: true },
         orderBy: { _sum: { total_count: "desc" } },
         take: 5,
       }),
     ]);
+
     const formattedTopProvinces = topProvinces.map((p) => ({
       name: p.provname,
       count: Number(p._sum?.total_count) || 0,
@@ -70,6 +57,7 @@ export async function GET(request: Request) {
       name: g.groupname,
       count: Number(g._sum?.total_count) || 0,
     }));
+
     return NextResponse.json({
       topProvinces: formattedTopProvinces,
       topHospitals: formattedTopHospitals,

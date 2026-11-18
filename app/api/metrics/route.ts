@@ -1,43 +1,24 @@
 // app/api/metrics/route.ts
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import type { Prisma } from "@/generated/prisma/client";
+import { buildSurveillanceWhere } from "@/lib/surveillance-query";
 
 export const dynamic = "force-dynamic";
-export async function GET(request: Request) {
-  const filterhospitalIds = ["10674", "11126"];
 
+export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url);
-    const startDate = searchParams.get("startDate");
-    const endDate = searchParams.get("endDate");
-    const province = searchParams.get("province");
-    const group = searchParams.get("group");
-    const hospitalIds = searchParams.getAll("hospitalIds");
-    const where: Prisma.maekok_summary_aggregatedWhereInput = {};
-    where.date_serv = {};
-    if (startDate)
-      where.date_serv = { ...where.date_serv, gte: new Date(startDate) };
-    if (endDate)
-      where.date_serv = { ...where.date_serv, lte: new Date(endDate) };
-    if (province) where.provcode = province;
-    if (group) where.groupname = group;
-    if (hospitalIds.length > 0) where.hospcode = { in: hospitalIds };
+    const where = buildSurveillanceWhere(searchParams);
+
     const [totalCasesData, hospitalCount, topProvince, topGroup] =
-      await prisma.$transaction([
+      await Promise.all([
         prisma.maekok_summary_aggregated.aggregate({
           _sum: { total_count: true },
-          where: {
-            ...where,
-            hospcode: { in: filterhospitalIds },
-          },
+          where,
         }),
-
         prisma.maekok_summary_aggregated.findMany({
-          where: {
-            ...where,
-            hospcode: { in: filterhospitalIds },
-          },
+          where,
+          select: { hospcode: true },
           distinct: ["hospcode"],
         }),
         prisma.maekok_summary_aggregated.groupBy({
@@ -45,7 +26,6 @@ export async function GET(request: Request) {
           where: {
             ...where,
             provname: { not: null },
-            hospcode: { in: filterhospitalIds },
           },
           _sum: { total_count: true },
           orderBy: { _sum: { total_count: "desc" } },
@@ -56,13 +36,13 @@ export async function GET(request: Request) {
           where: {
             ...where,
             groupname: { not: null },
-            hospcode: { in: filterhospitalIds },
           },
           _sum: { total_count: true },
           orderBy: { _sum: { total_count: "desc" } },
           take: 1,
         }),
       ]);
+
     const metrics = {
       totalCases: Number(totalCasesData._sum.total_count) || 0,
       hospitalCount: hospitalCount.length || 0,

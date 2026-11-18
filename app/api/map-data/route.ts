@@ -1,26 +1,14 @@
 // app/api/map-data/route.ts
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import type { Prisma } from "@/generated/prisma/client";
+import { buildSurveillanceWhere } from "@/lib/surveillance-query";
 
 export const dynamic = "force-dynamic";
 
 export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url);
-    const startDate = searchParams.get("startDate");
-    const endDate = searchParams.get("endDate");
-    const province = searchParams.get("province");
-    const hospitalIds = searchParams.getAll("hospitalIds");
-
-    const where: Prisma.maekok_summary_aggregatedWhereInput = {};
-    where.date_serv = {};
-    if (startDate)
-      where.date_serv = { ...where.date_serv, gte: new Date(startDate) };
-    if (endDate)
-      where.date_serv = { ...where.date_serv, lte: new Date(endDate) };
-    if (province) where.provcode = province;
-    if (hospitalIds.length > 0) where.hospcode = { in: hospitalIds };
+    const where = buildSurveillanceWhere(searchParams);
 
     const provinceData = await prisma.maekok_summary_aggregated.groupBy({
       by: ["provname"],
